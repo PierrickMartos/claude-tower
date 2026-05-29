@@ -108,6 +108,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case EventMsg:
+		if msg.Event.ClosesWorkspace() {
+			m.reg.EndWorkspace(msg.Event.WorkspaceID)
+			return m, nil
+		}
 		s := m.reg.Apply(msg.Event)
 		if s != nil && s.Dirty && s.Cwd != "" {
 			sid, cwd := s.ID, s.Cwd

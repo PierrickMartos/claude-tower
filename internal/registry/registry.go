@@ -28,16 +28,17 @@ func (s Status) String() string { return statusName[s] }
 func (s Status) Glyph() string  { return statusGlyph[s] }
 
 type Session struct {
-	ID         string
-	Cwd        string
-	ProjectDir string
-	Status     Status
-	LastTool   string
-	LastHook   string
-	LastEvent  time.Time
-	Summary    string
-	SummaryAt  time.Time
-	Dirty      bool
+	ID          string
+	WorkspaceID string
+	Cwd         string
+	ProjectDir  string
+	Status      Status
+	LastTool    string
+	LastHook    string
+	LastEvent   time.Time
+	Summary     string
+	SummaryAt   time.Time
+	Dirty       bool
 }
 
 type Registry struct {
@@ -63,6 +64,9 @@ func (r *Registry) Apply(e cmuxevents.Event) *Session {
 	if !ok {
 		s = &Session{ID: sid}
 		r.sessions[sid] = s
+	}
+	if e.WorkspaceID != "" {
+		s.WorkspaceID = e.WorkspaceID
 	}
 	if e.Payload.Cwd != "" {
 		s.Cwd = e.Payload.Cwd
@@ -111,6 +115,24 @@ func (r *Registry) BootstrapSession(id, cwd, lastTool string, lastEvent time.Tim
 	}
 	r.sessions[id] = s
 	return s
+}
+
+// EndWorkspace marks every session belonging to a cmux workspace as ended.
+// cmux only fires a graceful SessionEnd hook on /exit-style quits; closing the
+// tab/terminal kills the process abruptly, so this is the only signal that the
+// session is gone. No-op for an empty id so we never mass-end sessions that
+// haven't yet reported a workspace (e.g. bootstrapped from a transcript).
+func (r *Registry) EndWorkspace(workspaceID string) {
+	if workspaceID == "" {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, s := range r.sessions {
+		if s.WorkspaceID == workspaceID {
+			s.Status = StatusEnded
+		}
+	}
 }
 
 func (r *Registry) SetSummary(id, summary string) {
