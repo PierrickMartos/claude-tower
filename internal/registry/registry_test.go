@@ -120,6 +120,32 @@ func TestApplyEmptyFieldsDoNotClobber(t *testing.T) {
 	}
 }
 
+func TestEndWorkspaceEndsMatchingSessionsOnly(t *testing.T) {
+	r := registry.New()
+	r.Apply(cmuxevents.Event{WorkspaceID: "ws1", OccurredAt: time.Unix(100, 0),
+		Payload: cmuxevents.Payload{SessionID: "a", HookEventName: "PreToolUse"}})
+	r.Apply(cmuxevents.Event{WorkspaceID: "ws2", OccurredAt: time.Unix(100, 0),
+		Payload: cmuxevents.Payload{SessionID: "b", HookEventName: "PreToolUse"}})
+
+	r.EndWorkspace("ws1")
+
+	snap := r.Snapshot()
+	if len(snap) != 1 || snap[0].ID != "b" {
+		t.Fatalf("snapshot = %+v, want only session b active (ws1 ended)", snap)
+	}
+}
+
+func TestEndWorkspaceEmptyIDIsNoOp(t *testing.T) {
+	r := registry.New()
+	// A session with no reported workspace id (e.g. bootstrapped from a transcript)
+	// must not be swept away by a stray empty-id close.
+	r.Apply(evt("a", "PreToolUse"))
+	r.EndWorkspace("")
+	if len(r.Snapshot()) != 1 {
+		t.Error(`EndWorkspace("") ended a session with empty workspace id`)
+	}
+}
+
 func TestSetSummaryClearsDirty(t *testing.T) {
 	r := registry.New()
 	r.Apply(evt("sid", "PreToolUse")) // Dirty = true

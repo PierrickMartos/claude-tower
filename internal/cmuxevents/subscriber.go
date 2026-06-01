@@ -16,7 +16,11 @@ type Event struct {
 	Name       string    `json:"name"`
 	Category   string    `json:"category"`
 	OccurredAt time.Time `json:"occurred_at"`
-	Payload    Payload   `json:"payload"`
+	// WorkspaceID is the top-level field, present on agent hooks, workspace.*
+	// and surface.* events alike (the payload copy is not). Use it to correlate
+	// a session with the workspace whose closure ends it.
+	WorkspaceID string  `json:"workspace_id"`
+	Payload     Payload `json:"payload"`
 }
 
 type Payload struct {
@@ -26,6 +30,22 @@ type Payload struct {
 	ToolName      string `json:"tool_name"`
 	Phase         string `json:"phase"`
 	WorkspaceID   string `json:"workspace_id"`
+	Kind          string `json:"kind"`   // surface.closed: terminal | browser | …
+	Origin        string `json:"origin"` // surface.closed: tab_close | detach | …
+}
+
+// ClosesWorkspace reports whether this event means a workspace (cmux tab) and
+// the agent sessions inside it have gone away. surface.closed also fires on
+// "detach" (the pane moved, not closed) and for non-terminal surfaces, so only
+// a terminal tab_close counts.
+func (e Event) ClosesWorkspace() bool {
+	switch e.Name {
+	case "workspace.closed":
+		return true
+	case "surface.closed":
+		return e.Payload.Kind == "terminal" && e.Payload.Origin == "tab_close"
+	}
+	return false
 }
 
 // Subscribe spawns `cmux events` and returns a channel of decoded agent events.
@@ -77,14 +97,23 @@ func stream(ctx context.Context, cursor string, out chan<- Event) error {
 		if err := json.Unmarshal(line, &head); err != nil {
 			continue
 		}
-		if head.Type != "event" || head.Category != "agent" {
+		if head.Type != "event" {
 			continue
 		}
 		var ev Event
 		if err := json.Unmarshal(line, &ev); err != nil {
 			continue
 		}
-		if ev.Payload.SessionID == "" {
+		switch {
+		case head.Category == "agent":
+			if ev.Payload.SessionID == "" {
+				continue
+			}
+		case ev.ClosesWorkspace():
+			if ev.WorkspaceID == "" {
+				continue
+			}
+		default:
 			continue
 		}
 		select {
