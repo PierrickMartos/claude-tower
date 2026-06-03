@@ -1,7 +1,10 @@
 name: Release
 
+# Fires only after the CI workflow succeeds on main, so a red build never ships.
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
 
 permissions:
@@ -9,11 +12,15 @@ permissions:
 
 jobs:
   release:
+    # workflow_run also fires for failed/cancelled runs and for PR-triggered CI;
+    # gate on a successful push-triggered run.
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0 # tags are needed to compute the next version
+          ref: ${{ github.event.workflow_run.head_sha }} # release exactly the commit CI tested
 
       - uses: actions/setup-go@v5
         with:
