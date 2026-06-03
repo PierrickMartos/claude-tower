@@ -3,6 +3,10 @@
 <h3 align="center">A terminal control tower for all your Claude Code sessions — a macro view of what every agent is doing, with live status, idle time, and one-line AI summaries. Built for running many agents at once.</h3>
 
 <p align="center">
+  <a href="https://github.com/PierrickMartos/claude-tower/releases/latest"><img src="https://img.shields.io/github/v/release/PierrickMartos/claude-tower" alt="Latest release"></a>
+</p>
+
+<p align="center">
   <img src="images/preview.png" alt="claude-tower preview" width="900">
 </p>
 
@@ -19,6 +23,24 @@
 ## Install
 
 > **macOS only.** Requires [cmux](https://cmux.com) running locally and a recent Claude Code install.
+
+### Download a binary
+
+Grab the latest build for your Mac — these links always point to the newest release:
+
+| Chip | Download |
+|---|---|
+| Apple Silicon (M1+) | [claude-tower-darwin-arm64](https://github.com/PierrickMartos/claude-tower/releases/latest/download/claude-tower-darwin-arm64) |
+| Intel | [claude-tower-darwin-amd64](https://github.com/PierrickMartos/claude-tower/releases/latest/download/claude-tower-darwin-amd64) |
+
+```bash
+curl -fsSL -o claude-tower https://github.com/PierrickMartos/claude-tower/releases/latest/download/claude-tower-darwin-arm64
+chmod +x claude-tower
+xattr -d com.apple.quarantine claude-tower  # unsigned binary — clear Gatekeeper flag
+./claude-tower
+```
+
+### Or build from source
 
 ```bash
 # 1. Install Go (one-time)
